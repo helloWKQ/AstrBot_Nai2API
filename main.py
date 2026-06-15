@@ -162,9 +162,10 @@ class Nai2ApiPlugin(Star):
         # 因此 args 就是命令后的完整原始文本，不需要再去除前缀
         args = args.strip() if args else ""
 
-        # 子命令：预设列表
+        # 子命令：预设列表 / 查看单个预设
         if args == "presets" or args == "预设" or args.startswith("presets ") or args.startswith("预设 "):
-            return self._handle_presets(event)
+            preset_name = args[8:].strip() if args.startswith("presets ") else args[3:].strip() if args.startswith("预设 ") else ""
+            return self._handle_presets(event, preset_name)
 
         # 子命令：查询余额
         if args in ("balance", "余额", "点数", "次数"):
@@ -255,9 +256,24 @@ class Nai2ApiPlugin(Star):
             logger.error("[Nai2API] 查询余额失败: %s", e)
             return event.plain_result(f"查询余额失败: {e}")
 
-    def _handle_presets(self, event: AstrMessageEvent):
-        """处理预设列表"""
+    def _handle_presets(self, event: AstrMessageEvent, preset_name: str = ""):
+        """处理预设列表 / 查看单个预设"""
         all_presets = self.presets.list_all()
+        
+        if preset_name:
+            if preset_name in all_presets:
+                info = all_presets[preset_name]
+                builtin_tag = " [内置]" if self.presets.is_builtin(preset_name) else ""
+                desc = info.get("desc", "")
+                artist_val = info.get("artist", "")
+                return event.plain_result(
+                    f"预设 '{preset_name}'{builtin_tag}：\n"
+                    f"描述: {desc}\n"
+                    f"质量前缀:\n{artist_val}"
+                )
+            else:
+                return event.plain_result(f"预设 '{preset_name}' 不存在，使用 /nai presets 查看可用预设")
+        
         if not all_presets:
             return event.plain_result("暂无预设")
 
@@ -271,6 +287,7 @@ class Nai2ApiPlugin(Star):
             lines.append("")
 
         lines.append("使用: /nai -p <预设名> <提示词>")
+        lines.append("查看单个预设详情: /nai presets <预设名>")
         return event.plain_result("\n".join(lines))
 
     def _handle_save_preset(self, event: AstrMessageEvent, args: str):

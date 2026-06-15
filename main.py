@@ -381,3 +381,149 @@ class Nai2ApiPlugin(Star):
             return mcp.types.CallToolResult(
                 content=[mcp.types.TextContent(type="text", text=f"生图失败: {e}")]
             )
+
+    @filter.llm_tool(name="nai_get_balance")
+    async def nai_get_balance_tool(self, event: AstrMessageEvent):
+        """查询 Nai2API 账户余额和剩余点数。
+        
+        返回账户余额、状态以及预计可生成的图片数量。
+        """
+        try:
+            data = await self.client.get_balance()
+            balance = data.get("balance", 0)
+            enabled = data.get("enabled", True)
+            note = data.get("note", "")
+
+            balance_int = int(balance)
+            normal_count = balance_int
+            count_2k = balance_int // 15
+            count_4k = balance_int // 25
+
+            status = "正常" if enabled else "已禁用"
+            lines = [
+                f"Nai2API 余额查询",
+                f"  剩余点数: {balance_int} 点",
+                f"  账号状态: {status}",
+            ]
+            if note:
+                lines.append(f"  备注: {note}")
+            lines.append(f"  ---")
+            lines.append(f"  预计可生成:")
+            lines.append(f"    普通尺寸(竖图/横图/方图): ~{normal_count} 张")
+            lines.append(f"    2K尺寸: ~{count_2k} 张")
+            lines.append(f"    4K尺寸: ~{count_4k} 张")
+
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text="\n".join(lines))]
+            )
+        except Exception as e:
+            logger.error("[Nai2API] LLM 查询余额失败: %s", e)
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=f"查询余额失败: {e}")]
+            )
+
+    @filter.llm_tool(name="nai_list_presets")
+    async def nai_list_presets_tool(self, event: AstrMessageEvent, preset_name: str = ""):
+        """列出所有可用预设，或查看单个预设详情。
+
+        Args:
+            preset_name(string): 可选，指定要查看的预设名称，留空则列出所有预设
+        """
+        all_presets = self.presets.list_all()
+        
+        if preset_name:
+            if preset_name in all_presets:
+                info = all_presets[preset_name]
+                builtin_tag = " [内置]" if self.presets.is_builtin(preset_name) else ""
+                desc = info.get("desc", "")
+                artist_val = info.get("artist", "")
+                return mcp.types.CallToolResult(
+                    content=[mcp.types.TextContent(
+                        type="text",
+                        text=f"预设 '{preset_name}'{builtin_tag}：\n描述: {desc}\n质量前缀:\n{artist_val}"
+                    )]
+                )
+            else:
+                return mcp.types.CallToolResult(
+                    content=[mcp.types.TextContent(
+                        type="text",
+                        text=f"预设 '{preset_name}' 不存在，可用预设: {', '.join(all_presets.keys())}"
+                    )]
+                )
+        
+        if not all_presets:
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text="暂无预设")]
+            )
+
+        lines = ["可用预设列表：\n"]
+        for name, info in all_presets.items():
+            builtin_tag = " [内置]" if self.presets.is_builtin(name) else ""
+            desc = info.get("desc", "")
+            lines.append(f"  {name}{builtin_tag} - {desc}")
+
+        return mcp.types.CallToolResult(
+            content=[mcp.types.TextContent(type="text", text="\n".join(lines))]
+        )
+
+    @filter.llm_tool(name="nai_save_preset")
+    async def nai_save_preset_tool(
+        self,
+        event: AstrMessageEvent,
+        name: str,
+        artist: str,
+    ):
+        """保存自定义预设。
+
+        Args:
+            name(string): 预设名称（不能含空格）
+            artist(string): 质量前缀/画师串
+        """
+        name = name.strip()
+        artist = artist.strip()
+        
+        if not name or not artist:
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text="预设名称和质量前缀都不能为空")]
+            )
+
+        if " " in name:
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text="预设名称不能包含空格，请使用下划线或其他字符")]
+            )
+
+        is_overwrite = self.presets.get(name) is not None
+        self.presets.save(name, artist)
+        action = "已更新" if is_overwrite else "已保存"
+        
+        return mcp.types.CallToolResult(
+            content=[mcp.types.TextContent(type="text", text=f"{action}预设 '{name}' 成功")]
+        )
+
+    @filter.llm_tool(name="nai_delete_preset")
+    async def nai_delete_preset_tool(self, event: AstrMessageEvent, name: str):
+        """删除自定义预设。
+
+        Args:
+            name(string): 要删除的预设名称
+        """
+        name = name.strip()
+        
+        if not name:
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text="预设名称不能为空")]
+            )
+
+        if self.presets.is_builtin(name):
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=f"'{name}' 是内置预设，无法删除")]
+            )
+
+        if self.presets.delete(name):
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=f"已删除预设 '{name}'")]
+            )
+        else:
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=f"预设 '{name}' 不存在")]
+            )

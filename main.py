@@ -161,6 +161,7 @@ class Nai2ApiPlugin(Star):
         # 注意：AstrBot 的 filter.command 已经把 wake_prefix（如 "/"）和 "nai" 前缀去除
         # 因此 args 就是命令后的完整原始文本，不需要再去除前缀
         args = args.strip() if args else ""
+        logger.debug("[Nai2API] nai 命令 args=%r", args)
 
         # 子命令：预设列表
         if args == "presets" or args == "预设" or args.startswith("presets ") or args.startswith("预设 "):

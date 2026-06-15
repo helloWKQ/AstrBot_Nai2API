@@ -133,6 +133,7 @@ AI → 自动调用 nai_generate 生成图片
 
 ```
 /nai presets                              查看所有预设（也可用 /nai 预设）
+/nai presets <预设名>                      查看单个预设详情（也可用 /nai 预设 <预设名>）
 /nai save 我的预设 best quality, detailed  保存自定义预设（也可用 /nai 保存）
 /nai del 我的预设                          删除自定义预设（也可用 /nai 删除）
 ```

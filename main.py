@@ -413,8 +413,10 @@ class Nai2ApiPlugin(Star):
             lines.append(f"    2K尺寸: ~{count_2k} 张")
             lines.append(f"    4K尺寸: ~{count_4k} 张")
 
+            result_text = "\n".join(lines)
+            await event.send(event.plain_result(result_text))
             return mcp.types.CallToolResult(
-                content=[mcp.types.TextContent(type="text", text="\n".join(lines))]
+                content=[mcp.types.TextContent(type="text", text=result_text)]
             )
         except Exception as e:
             logger.error("[Nai2API] LLM 查询余额失败: %s", e)
@@ -437,18 +439,16 @@ class Nai2ApiPlugin(Star):
                 builtin_tag = " [内置]" if self.presets.is_builtin(preset_name) else ""
                 desc = info.get("desc", "")
                 artist_val = info.get("artist", "")
+                result_text = f"预设 '{preset_name}'{builtin_tag}：\n描述: {desc}\n质量前缀:\n{artist_val}"
+                await event.send(event.plain_result(result_text))
                 return mcp.types.CallToolResult(
-                    content=[mcp.types.TextContent(
-                        type="text",
-                        text=f"预设 '{preset_name}'{builtin_tag}：\n描述: {desc}\n质量前缀:\n{artist_val}"
-                    )]
+                    content=[mcp.types.TextContent(type="text", text=result_text)]
                 )
             else:
+                result_text = f"预设 '{preset_name}' 不存在，可用预设: {', '.join(all_presets.keys())}"
+                await event.send(event.plain_result(result_text))
                 return mcp.types.CallToolResult(
-                    content=[mcp.types.TextContent(
-                        type="text",
-                        text=f"预设 '{preset_name}' 不存在，可用预设: {', '.join(all_presets.keys())}"
-                    )]
+                    content=[mcp.types.TextContent(type="text", text=result_text)]
                 )
         
         if not all_presets:
@@ -462,8 +462,10 @@ class Nai2ApiPlugin(Star):
             desc = info.get("desc", "")
             lines.append(f"  {name}{builtin_tag} - {desc}")
 
+        result_text = "\n".join(lines)
+        await event.send(event.plain_result(result_text))
         return mcp.types.CallToolResult(
-            content=[mcp.types.TextContent(type="text", text="\n".join(lines))]
+            content=[mcp.types.TextContent(type="text", text=result_text)]
         )
 
     @filter.llm_tool(name="nai_save_preset")
@@ -495,9 +497,10 @@ class Nai2ApiPlugin(Star):
         is_overwrite = self.presets.get(name) is not None
         self.presets.save(name, artist)
         action = "已更新" if is_overwrite else "已保存"
-        
+        result_text = f"{action}预设 '{name}' 成功"
+        await event.send(event.plain_result(result_text))
         return mcp.types.CallToolResult(
-            content=[mcp.types.TextContent(type="text", text=f"{action}预设 '{name}' 成功")]
+            content=[mcp.types.TextContent(type="text", text=result_text)]
         )
 
     @filter.llm_tool(name="nai_delete_preset")
@@ -520,10 +523,14 @@ class Nai2ApiPlugin(Star):
             )
 
         if self.presets.delete(name):
+            result_text = f"已删除预设 '{name}'"
+            await event.send(event.plain_result(result_text))
             return mcp.types.CallToolResult(
-                content=[mcp.types.TextContent(type="text", text=f"已删除预设 '{name}'")]
+                content=[mcp.types.TextContent(type="text", text=result_text)]
             )
         else:
+            result_text = f"预设 '{name}' 不存在"
+            await event.send(event.plain_result(result_text))
             return mcp.types.CallToolResult(
-                content=[mcp.types.TextContent(type="text", text=f"预设 '{name}' 不存在")]
+                content=[mcp.types.TextContent(type="text", text=result_text)]
             )

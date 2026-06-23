@@ -39,6 +39,7 @@
 | `default_noise_schedule` | 默认噪声调度 | `karras` |
 | `timeout` | 请求超时(秒) | `120` |
 | `llm_tool_enabled` | 允许 LLM 调用生图（AI 助手需要） | `true` |
+| `show_image_info` | 图片信息标签（在图片下方显示预设名和耗时） | `true` |
 | `allow_2k` | 允许生成 2K 图片（关闭后自动降级为普通尺寸，防误扣 15 点） | `true` |
 | `allow_4k` | 允许生成 4K 图片（关闭后自动降级为普通尺寸，防误扣 25 点） | `true` |
 | `max_cached_images` | 图片最大缓存数 | `50` |

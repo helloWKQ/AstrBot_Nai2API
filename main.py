@@ -170,6 +170,7 @@ class Nai2ApiPlugin(Star):
 
         async with self._semaphore:
             try:
+                logger.info("[Nai2API] 异步生图开始: prompt=%s...", prompt[:50])
                 image_path = await self._do_generate(
                     prompt,
                     size=size,
@@ -182,9 +183,24 @@ class Nai2ApiPlugin(Star):
                 preset_display = preset_name if preset_name else "无预设"
                 info_text = f"{preset_display} | 耗时{elapsed}秒\n{success_message}"
 
+                logger.info("[Nai2API] 异步生图完成: path=%s, elapsed=%d秒", image_path, elapsed)
+
                 # 分开发送：先发图片，再发文字信息
-                await event.send(event.image_result(str(image_path)))
-                await event.send(event.plain_result(info_text))
+                try:
+                    img_result = event.image_result(str(image_path))
+                    logger.info("[Nai2API] 准备发送图片...")
+                    await event.send(img_result)
+                    logger.info("[Nai2API] 图片发送完成")
+                except Exception as img_err:
+                    logger.error("[Nai2API] 图片发送失败: %s", img_err)
+
+                try:
+                    text_result = event.plain_result(info_text)
+                    logger.info("[Nai2API] 准备发送文字...")
+                    await event.send(text_result)
+                    logger.info("[Nai2API] 文字发送完成")
+                except Exception as text_err:
+                    logger.error("[Nai2API] 文字发送失败: %s", text_err)
 
             except asyncio.CancelledError:
                 # 任务被取消时提前退出，不发任何消息

@@ -100,6 +100,23 @@
     "type": "bool",
     "default": true
   },
+  "async_generate": {
+    "description": "异步生图模式",
+    "hint": "开启后 LLM 调用生图立即返回，后台异步生成图片，不会阻塞对话",
+    "type": "bool",
+    "default": true
+  },
+  "max_concurrent": {
+    "description": "最大并发生图数",
+    "hint": "异步模式下同时生成的图片数量上限，超出会排队等待",
+    "type": "int",
+    "default": 3,
+    "slider": {
+      "min": 1,
+      "max": 10,
+      "step": 1
+    }
+  },
   "allow_2k": {
     "description": "允许生成 2K 图片",
     "hint": "关闭后使用 2K 尺寸会自动降级为普通尺寸，防止误扣 15 点",

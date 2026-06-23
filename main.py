@@ -188,17 +188,21 @@ class Nai2ApiPlugin(Star):
                 # 用消息链发送：图片 + 文字
                 try:
                     logger.info("[Nai2API] 准备发送图片+文字...")
-                    result = event.chain_result([
-                        Image.fromPath(image_path=str(image_path)),
-                        Plain(info_text),
-                    ])
-                    await event.send(result)
+                    img_chain = event.image_result(str(image_path))
+                    text_chain = event.plain_result(info_text)
+                    # 合并两个消息链
+                    combined = img_chain
+                    if hasattr(combined, 'message') and hasattr(text_chain, 'message'):
+                        combined.message.extend(text_chain.message)
+                    else:
+                        combined = text_chain
+                    await event.send(combined)
                     logger.info("[Nai2API] 消息发送完成")
                 except Exception as send_err:
                     logger.error("[Nai2API] 消息发送失败: %s", send_err)
                     # 图片发不出去就只发文字
                     try:
-                        await event.send(event.plain_result(f"图片发送失败，但生图已完成（耗时{elapsed}秒\n{success_message}"))
+                        await event.send(event.plain_result(f"图片发送失败，但生图已完成（耗时{elapsed}秒）\n{success_message}"))
                     except Exception:
                         pass
 

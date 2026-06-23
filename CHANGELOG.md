@@ -1,5 +1,10 @@
 # 更新日志
 
+## v1.1.4
+
+- 修复 Image.fromPath 方法不存在的问题
+- 改用 event.image_result() 和 event.plain_result() 构建消息链
+
 ## v1.1.3
 
 - 修复异步生图图片发送超时的问题

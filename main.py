@@ -246,6 +246,12 @@ class Nai2ApiPlugin(Star):
             return None
         except Exception as e:
             logger.error("[Nai2API] 生图失败: %s", e)
+            # 失败时也显示信息标签
+            if self._show_image_info:
+                elapsed = time.time() - start
+                reason = str(e)[:20] if str(e) else "未知错误"
+                info_text = f"{preset_name or '默认'} | 耗时{int(elapsed)}秒\n失败原因：{reason}"
+                return event.plain_result(info_text)
             return event.plain_result(f"生图失败: {e}")
 
     async def _handle_balance(self, event: AstrMessageEvent):
@@ -403,6 +409,12 @@ class Nai2ApiPlugin(Star):
             )
         except Exception as e:
             logger.error("[Nai2API] LLM 工具生图失败: %s", e)
+            # 失败时也显示信息标签
+            if self._show_image_info:
+                elapsed = time.time() - start
+                reason = str(e)[:20] if str(e) else "未知错误"
+                info_text = f"{preset.strip() or '默认'} | 耗时{int(elapsed)}秒\n失败原因：{reason}"
+                await event.send(event.plain_result(info_text))
             return mcp.types.CallToolResult(
                 content=[mcp.types.TextContent(type="text", text=f"生图失败: {e}")]
             )

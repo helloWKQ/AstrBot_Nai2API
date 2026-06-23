@@ -1,5 +1,11 @@
 # 更新日志
 
+## v1.1.1
+
+- 修复异步生图图片无法发送的问题（`core.message_builder.Image` 模块不存在）
+- 改用 `event.image_result()` API 发送图片
+- 图片和文字分开发送：先发图片，再发"预设名 | 耗时X秒"和成功消息
+
 ## v1.1.0
 
 - **重要修复**：添加 `async_generate` 和 `max_concurrent` 配置项到 `_conf_schema.json`

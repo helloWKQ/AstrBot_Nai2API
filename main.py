@@ -164,9 +164,7 @@ class Nai2ApiPlugin(Star):
         failure_message: str,
     ):
         """异步生图后台任务"""
-        from astrbot.api.message_chain import MessageChain
         import time
-        from .core.message_builder import Image
 
         start_time = time.time()
 
@@ -182,14 +180,11 @@ class Nai2ApiPlugin(Star):
 
                 elapsed = int(time.time() - start_time)
                 preset_display = preset_name if preset_name else "无预设"
-                info_text = f"{preset_display} | 耗时{elapsed}秒"
+                info_text = f"{preset_display} | 耗时{elapsed}秒\n{success_message}"
 
-                # 构建图片 + 消息格式
-                chain = MessageChain()
-                chain.append(Image(path=str(image_path)))
-                chain.append(Plain(f"\n{info_text}\n{success_message}"))
-
-                await event.send(chain)
+                # 分开发送：先发图片，再发文字信息
+                await event.send(event.image_result(str(image_path)))
+                await event.send(event.plain_result(info_text))
 
             except asyncio.CancelledError:
                 # 任务被取消时提前退出，不发任何消息

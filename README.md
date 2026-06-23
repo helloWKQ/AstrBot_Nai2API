@@ -39,6 +39,8 @@
 | `default_noise_schedule` | 默认噪声调度 | `karras` |
 | `timeout` | 请求超时(秒) | `120` |
 | `llm_tool_enabled` | 允许 LLM 调用生图（AI 助手需要） | `true` |
+| `async_generate` | 开启异步生图模式（LLM 不等待生图完成，详见下方异步生图说明） | `false` |
+| `max_concurrent` | 异步模式最大并发生图数（仅在 async_generate=true 时生效） | `3` |
 | `allow_2k` | 允许生成 2K 图片（关闭后自动降级为普通尺寸，防误扣 15 点） | `true` |
 | `allow_4k` | 允许生成 4K 图片（关闭后自动降级为普通尺寸，防误扣 25 点） | `true` |
 | `max_cached_images` | 图片最大缓存数 | `50` |
@@ -246,6 +248,63 @@ AI：来啦，正在用 AI 画笔创作... 🖌️
 
 ---
 
+## 异步生图模式
+
+开启异步生图模式后，AI 调用生图时不会再等待图片生成完成（30-60秒），而是：
+
+1. 立即发送 `pre_message`（可选）
+2. 后台异步生成图片
+3. 生成完成后自动发送图片 + `success_message`
+
+这样 AI 助手可以继续响应其他消息，不会因为生图而卡住。
+
+### 配置说明
+
+| 配置项 | 说明 |
+|--------|------|
+| `async_generate` | 设为 `true` 开启异步模式 |
+| `max_concurrent` | 同时最多生图数量（默认 3），超出部分排队 |
+
+### LLM 工具新增参数
+
+在异步模式下，调用 `nai_generate` 时可以使用以下参数：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `pre_message` | string | 否 | 生图前发送的消息（可选，为空则不发送） |
+| `success_message` | string | 否 | 生图成功后发送的消息（可选） |
+| `failure_message` | string | 否 | 生图失败后发送的消息（可选） |
+
+### 消息格式
+
+生图成功时的消息格式：
+```
+[图片]
+预设名 | 耗时X秒
+success_message
+```
+
+示例：
+```
+[生成的图片]
+动漫风 | 耗时32秒
+画好了~ 看看满意吗？
+```
+
+### 使用建议
+
+AI 人格提示词可以这样指导 AI：
+
+```
+当用户要求生图时：
+1. 生成合适的 pre_message（如："好的，马上画！"）
+2. 生成合适的 success_message（如："画好了~"）
+3. 调用 nai_generate 工具，传入这些消息参数
+4. 生图完成后会自动发送图片和消息
+```
+
+---
+
 ## LLM 工具调用（开发者参考）
 
 当 `llm_tool_enabled` 开启时，AI 助手可通过以下工具调用：
@@ -260,8 +319,13 @@ AI：来啦，正在用 AI 画笔创作... 🖌️
 | `negative` | string | 否 | 负面提示词，留空用默认 |
 | `preset` | string | 否 | 预设名称，如"高质量"、"动漫风"、"GalGame风" |
 | `seed` | int | 否 | 随机种子，0 表示自动随机 |
+| `pre_message` | string | 否 | 异步模式下，生图前发送的消息（可选） |
+| `success_message` | string | 否 | 异步模式下，生图成功后发送的消息（可选） |
+| `failure_message` | string | 否 | 异步模式下，生图失败后发送的消息（可选） |
 
 **参数优先级**：`artist` > `preset` > 默认（2.5D唯美风）
+
+**异步模式**：当 `async_generate=true` 且提供了 pre_message/success_message/failure_message 时，工具会异步执行生图。
 
 ### nai_get_balance - 查询余额
 

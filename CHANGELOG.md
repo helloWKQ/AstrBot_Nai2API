@@ -1,5 +1,13 @@
 # 更新日志
 
+## v1.0.7
+
+- 新增**异步生图模式**：LLM 调用生图后立即返回，后台异步生成图片
+- 新增 3 个可选消息参数：`pre_message`（生图前消息）、`success_message`（成功消息）、`failure_message`（失败消息）
+- 新增插件配置项：`async_generate`（是否开启异步模式）、`max_concurrent`（最大并发生图数）
+- 生图成功后消息格式：图片在上 + "预设名 | 耗时X秒" + success_message
+- 使用 `asyncio.Semaphore` 控制并发数，超出限制的任务自动排队
+
 ## v1.0.6
 
 - 修复合并转发消息功能丢失的问题（合并分支时被覆盖）

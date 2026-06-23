@@ -121,6 +121,11 @@ class Nai2ApiPlugin(Star):
 
         self._llm_tool_enabled = bool(config.get("llm_tool_enabled", True))
 
+        # 异步生图配置
+        self._async_generate_enabled = bool(config.get("async_generate", False))
+        self._max_concurrent = int(config.get("max_concurrent", 3))
+        self._semaphore = asyncio.Semaphore(self._max_concurrent)
+
     async def terminate(self):
         """插件卸载时清理资源"""
         await self.client.close()
@@ -144,6 +149,50 @@ class Nai2ApiPlugin(Star):
             content=[Plain(f"{title}\n\n{content}")]
         )
         return event.chain_result([node])
+
+    async def _async_generate(
+        self,
+        event: AstrMessageEvent,
+        prompt: str,
+        size: str | None,
+        artist: str | None,
+        negative: str | None,
+        seed: int | None,
+        preset_name: str,
+        success_message: str,
+        failure_message: str,
+    ):
+        """异步生图后台任务"""
+        from astrbot.api.message_chain import MessageChain
+        import time
+        from .core.message_builder import Image
+
+        start_time = time.time()
+
+        async with self._semaphore:
+            try:
+                image_path = await self._do_generate(
+                    prompt,
+                    size=size,
+                    artist=artist,
+                    negative=negative,
+                    seed=seed,
+                )
+
+                elapsed = int(time.time() - start_time)
+                preset_display = preset_name if preset_name else "无预设"
+                info_text = f"{preset_display} | 耗时{elapsed}秒"
+
+                # 构建图片 + 消息格式
+                chain = MessageChain()
+                chain.append(Image(path=str(image_path)))
+                chain.append(Plain(f"\n{info_text}\n{success_message}"))
+
+                await event.send(chain)
+
+            except Exception as e:
+                logger.error("[Nai2API] 异步生图失败: %s", e)
+                await event.send(event.plain_result(failure_message))
 
     async def _do_generate(
         self,
@@ -341,6 +390,9 @@ class Nai2ApiPlugin(Star):
         negative: str = "",
         preset: str = "",
         seed: int = 0,
+        pre_message: str = "",
+        success_message: str = "",
+        failure_message: str = "",
     ):
         """使用 NovelAI 生成图片。
 
@@ -351,6 +403,9 @@ class Nai2ApiPlugin(Star):
             negative(string): 负面提示词，留空使用默认
             preset(string): 预设名称，例如 "高质量"、"动漫风"，留空使用默认
             seed(int): 随机种子，0 表示自动随机，相同种子可复现图片
+            pre_message(string): 异步模式下，生图前发送的消息（可选）
+            success_message(string): 异步模式下，生图成功后发送的消息（可选）
+            failure_message(string): 异步模式下，生图失败后发送的消息（可选）
         """
         if not self._llm_tool_enabled:
             return mcp.types.CallToolResult(
@@ -367,13 +422,42 @@ class Nai2ApiPlugin(Star):
             artist.strip() or None,
         )
 
+        final_seed = seed if seed else None
+        final_size = size.strip() or None
+        final_negative = negative.strip() or None
+        final_preset = preset.strip() or None
+
+        # 异步模式
+        if self._async_generate_enabled and (pre_message or success_message or failure_message):
+            # 发送前置消息
+            if pre_message:
+                await event.send(event.plain_result(pre_message))
+
+            # 启动异步任务
+            asyncio.create_task(self._async_generate(
+                event=event,
+                prompt=prompt.strip(),
+                size=final_size,
+                artist=final_artist,
+                negative=final_negative,
+                seed=final_seed,
+                preset_name=final_preset or "",
+                success_message=success_message or "生成完成",
+                failure_message=failure_message or f"生成失败",
+            ))
+
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text="生图任务已启动")]
+            )
+
+        # 同步模式（默认行为）
         try:
             image_path = await self._do_generate(
                 prompt.strip(),
-                size=size.strip() or None,
+                size=final_size,
                 artist=final_artist,
-                negative=negative.strip() or None,
-                seed=seed if seed else None,
+                negative=final_negative,
+                seed=final_seed,
             )
 
             await event.send(event.image_result(str(image_path)))

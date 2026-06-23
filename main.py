@@ -6,6 +6,7 @@ Nai2API AstrBot 生图插件
 """
 
 import re
+import time
 from pathlib import Path
 
 import mcp
@@ -120,6 +121,7 @@ class Nai2ApiPlugin(Star):
         self.presets = PresetManager(self.data_dir)
 
         self._llm_tool_enabled = bool(config.get("llm_tool_enabled", True))
+        self._show_image_info = bool(config.get("show_image_info", True))
 
     async def terminate(self):
         """插件卸载时清理资源"""
@@ -144,6 +146,16 @@ class Nai2ApiPlugin(Star):
             content=[Plain(f"{title}\n\n{content}")]
         )
         return event.chain_result([node])
+
+    async def _send_image_with_info(self, event: AstrMessageEvent, image_path: Path, preset_name: str | None, elapsed: float):
+        """发送图片+信息标签"""
+        # 先发图片
+        await event.send(event.image_result(str(image_path)))
+
+        # 如果开启了信息标签，则发送标签
+        if self._show_image_info:
+            info_text = f"{preset_name or '默认'} | 耗时{int(elapsed)}秒"
+            await event.send(event.plain_result(info_text))
 
     async def _do_generate(
         self,
@@ -225,10 +237,13 @@ class Nai2ApiPlugin(Star):
             return event.plain_result(f"预设 '{preset_name}' 不存在，使用 /nai presets 查看可用预设")
 
         try:
+            start = time.time()
             image_path = await self._do_generate(
                 prompt, size=size, artist=final_artist, negative=negative, seed=seed
             )
-            return event.image_result(str(image_path))
+            elapsed = time.time() - start
+            await self._send_image_with_info(event, image_path, preset_name, elapsed)
+            return None
         except Exception as e:
             logger.error("[Nai2API] 生图失败: %s", e)
             return event.plain_result(f"生图失败: {e}")
@@ -368,6 +383,7 @@ class Nai2ApiPlugin(Star):
         )
 
         try:
+            start = time.time()
             image_path = await self._do_generate(
                 prompt.strip(),
                 size=size.strip() or None,
@@ -375,8 +391,9 @@ class Nai2ApiPlugin(Star):
                 negative=negative.strip() or None,
                 seed=seed if seed else None,
             )
+            elapsed = time.time() - start
 
-            await event.send(event.image_result(str(image_path)))
+            await self._send_image_with_info(event, image_path, preset.strip() or None, elapsed)
 
             return mcp.types.CallToolResult(
                 content=[mcp.types.TextContent(

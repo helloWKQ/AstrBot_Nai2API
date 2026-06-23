@@ -100,6 +100,12 @@
     "type": "bool",
     "default": true
   },
+  "show_image_info": {
+    "description": "图片信息标签",
+    "hint": "开启后在图片下方显示预设名和耗时",
+    "type": "bool",
+    "default": true
+  },
   "allow_2k": {
     "description": "允许生成 2K 图片",
     "hint": "关闭后使用 2K 尺寸会自动降级为普通尺寸，防止误扣 15 点",

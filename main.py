@@ -191,6 +191,11 @@ class Nai2ApiPlugin(Star):
 
                 await event.send(chain)
 
+            except asyncio.CancelledError:
+                # 任务被取消时提前退出，不发任何消息
+                logger.warning("[Nai2API] 异步生图任务被取消")
+                raise
+
             except Exception as e:
                 logger.error("[Nai2API] 异步生图失败: %s", e)
                 await event.send(event.plain_result(failure_message))

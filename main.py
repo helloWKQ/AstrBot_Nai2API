@@ -13,7 +13,7 @@ import mcp
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.message_components import Node, Plain
+from astrbot.api.message_components import Node, Plain, Image
 from astrbot.api.star import Context, Star, StarTools
 from astrbot.core.star.filter.command import GreedyStr
 
@@ -185,31 +185,33 @@ class Nai2ApiPlugin(Star):
 
                 logger.info("[Nai2API] 异步生图完成: path=%s, elapsed=%d秒", image_path, elapsed)
 
-                # 分开发送：先发图片，再发文字信息
+                # 用消息链发送：图片 + 文字
                 try:
-                    img_result = event.image_result(str(image_path))
-                    logger.info("[Nai2API] 准备发送图片...")
-                    await event.send(img_result)
-                    logger.info("[Nai2API] 图片发送完成")
-                except Exception as img_err:
-                    logger.error("[Nai2API] 图片发送失败: %s", img_err)
-
-                try:
-                    text_result = event.plain_result(info_text)
-                    logger.info("[Nai2API] 准备发送文字...")
-                    await event.send(text_result)
-                    logger.info("[Nai2API] 文字发送完成")
-                except Exception as text_err:
-                    logger.error("[Nai2API] 文字发送失败: %s", text_err)
+                    logger.info("[Nai2API] 准备发送图片+文字...")
+                    result = event.chain_result([
+                        Image.fromPath(image_path=str(image_path)),
+                        Plain(info_text),
+                    ])
+                    await event.send(result)
+                    logger.info("[Nai2API] 消息发送完成")
+                except Exception as send_err:
+                    logger.error("[Nai2API] 消息发送失败: %s", send_err)
+                    # 图片发不出去就只发文字
+                    try:
+                        await event.send(event.plain_result(f"图片发送失败，但生图已完成（耗时{elapsed}秒\n{success_message}"))
+                    except Exception:
+                        pass
 
             except asyncio.CancelledError:
-                # 任务被取消时提前退出，不发任何消息
                 logger.warning("[Nai2API] 异步生图任务被取消")
                 raise
 
             except Exception as e:
                 logger.error("[Nai2API] 异步生图失败: %s", e)
-                await event.send(event.plain_result(failure_message))
+                try:
+                    await event.send(event.plain_result(failure_message))
+                except Exception:
+                    pass
 
     async def _do_generate(
         self,

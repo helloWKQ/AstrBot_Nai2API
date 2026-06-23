@@ -5,6 +5,7 @@ Nai2API AstrBot 生图插件
 支持 /nai 指令和 LLM 工具调用。
 """
 
+import asyncio
 import re
 from pathlib import Path
 

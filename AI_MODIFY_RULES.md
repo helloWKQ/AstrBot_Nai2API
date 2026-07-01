@@ -25,10 +25,10 @@
 ## 二、退回版本（用户说"退回去"）
 
 - 用户说"退回去"三个字 = 退回到上一个 stable 标签
-- 最近的稳定版本标签：`v1.0.9-stable`（2026-07-02，修复LLM工具调用兼容性问题后）
+- 最近的稳定版本标签：`v1.0.10-stable`（2026-07-02，彻底修复 Gemini 报 `value at top-level must be a list` 问题）
 - 操作：
   1. `git checkout main`
-  2. `git reset --hard v1.0.9-stable`
+  2. `git reset --hard v1.0.10-stable`
   3. `git push origin main --force`
 
 ---
@@ -58,3 +58,4 @@
 ## 五、本文档更新记录
 
 - **2026-06-23**：创建本文档，记录修改规范、退回版本方法、沟通注意事项
+- **2026-07-02**：更新 stable 标签为 v1.0.10-stable（彻底修复 Gemini 报错）

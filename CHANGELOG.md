@@ -1,5 +1,13 @@
 # 更新日志
 
+## v1.0.10
+
+- 彻底修复 Gemini 等模型通过 OpenAI 兼容层调用 LLM 工具时报 `value at top-level must be a list` 错误的问题
+- 根本原因：AstrBot 框架 `spec_to_func` 生成 JSON Schema 时不设置 `required` 字段，当工具所有参数都有默认值（零必填）时，Gemini 校验失败
+- 将 `nai_get_balance` 的 `detail` 参数改为必填（去掉默认值 `"simple"`）
+- 将 `nai_list_presets` 的 `preset_name` 参数改为必填（去掉默认值 `""`），内部逻辑重写：填 "all"/"全部" 列出所有预设，填具体名称查看单个预设
+- 至此所有 5 个 LLM 工具均至少有一个必填参数，Schema 生成正常
+
 ## v1.0.9
 
 - 修复 LLM 工具调用与部分 AI 模型（如 Gemini）的兼容性问题

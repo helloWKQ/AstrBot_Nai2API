@@ -428,11 +428,11 @@ class Nai2ApiPlugin(Star):
             )
 
     @filter.llm_tool(name="nai_get_balance")
-    async def nai_get_balance_tool(self, event: AstrMessageEvent, detail: str = "simple"):
+    async def nai_get_balance_tool(self, event: AstrMessageEvent, detail: str):
         """查询 Nai2API 账户余额和剩余点数。
 
         Args:
-            detail(string): 可选，返回详细程度，"simple" 精简版，"full" 完整版，留空默认 simple
+            detail(string): 返回详细程度，"simple" 精简版，"full" 完整版
         """
         try:
             data = await self.client.get_balance()
@@ -470,48 +470,50 @@ class Nai2ApiPlugin(Star):
             )
 
     @filter.llm_tool(name="nai_list_presets")
-    async def nai_list_presets_tool(self, event: AstrMessageEvent, preset_name: str = ""):
+    async def nai_list_presets_tool(self, event: AstrMessageEvent, preset_name: str):
         """列出所有可用预设，或查看单个预设详情。
 
         Args:
-            preset_name(string): 可选，指定要查看的预设名称，留空则列出所有预设
+            preset_name(string): 预设名称，填 "all" 或 "全部" 列出所有预设，填具体名称查看单个预设
         """
         all_presets = self.presets.list_all()
-        
-        if preset_name:
-            if preset_name in all_presets:
-                info = all_presets[preset_name]
-                builtin_tag = " [内置]" if self.presets.is_builtin(preset_name) else ""
+
+        # 列出所有预设
+        if preset_name.lower() in ("all", "全部"):
+            if not all_presets:
+                return mcp.types.CallToolResult(
+                    content=[mcp.types.TextContent(type="text", text="暂无预设")]
+                )
+
+            lines = []
+            for name, info in all_presets.items():
+                builtin_tag = " [内置]" if self.presets.is_builtin(name) else ""
                 desc = info.get("desc", "")
-                artist_val = info.get("artist", "")
-                result_text = f"描述: {desc}\n质量前缀:\n{artist_val}"
-                await event.send(self._forward_result(event, f"预设 '{preset_name}'{builtin_tag}", result_text))
-                return mcp.types.CallToolResult(
-                    content=[mcp.types.TextContent(type="text", text=result_text)]
-                )
-            else:
-                result_text = f"预设 '{preset_name}' 不存在，可用预设: {', '.join(all_presets.keys())}"
-                await event.send(event.plain_result(result_text))
-                return mcp.types.CallToolResult(
-                    content=[mcp.types.TextContent(type="text", text=result_text)]
-                )
-        
-        if not all_presets:
+                lines.append(f"{name}{builtin_tag} - {desc}")
+
+            result_text = "\n".join(lines)
+            await event.send(self._forward_result(event, "可用预设列表", result_text))
             return mcp.types.CallToolResult(
-                content=[mcp.types.TextContent(type="text", text="暂无预设")]
+                content=[mcp.types.TextContent(type="text", text=result_text)]
             )
 
-        lines = []
-        for name, info in all_presets.items():
-            builtin_tag = " [内置]" if self.presets.is_builtin(name) else ""
+        # 查看单个预设
+        if preset_name in all_presets:
+            info = all_presets[preset_name]
+            builtin_tag = " [内置]" if self.presets.is_builtin(preset_name) else ""
             desc = info.get("desc", "")
-            lines.append(f"{name}{builtin_tag} - {desc}")
-
-        result_text = "\n".join(lines)
-        await event.send(self._forward_result(event, "可用预设列表", result_text))
-        return mcp.types.CallToolResult(
-            content=[mcp.types.TextContent(type="text", text=result_text)]
-        )
+            artist_val = info.get("artist", "")
+            result_text = f"描述: {desc}\n质量前缀:\n{artist_val}"
+            await event.send(self._forward_result(event, f"预设 '{preset_name}'{builtin_tag}", result_text))
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=result_text)]
+            )
+        else:
+            result_text = f"预设 '{preset_name}' 不存在，可用预设: {', '.join(all_presets.keys())}"
+            await event.send(event.plain_result(result_text))
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=result_text)]
+            )
 
     @filter.llm_tool(name="nai_save_preset")
     async def nai_save_preset_tool(

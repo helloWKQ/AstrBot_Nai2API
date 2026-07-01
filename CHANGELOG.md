@@ -1,5 +1,12 @@
 # 更新日志
 
+## v1.0.9
+
+- 修复 LLM 工具调用与部分 AI 模型（如 Gemini）的兼容性问题
+- 将 `nai_generate` 工具的 `seed` 参数从 int 类型改为 string 类型，避免 Schema 验证错误
+- 为 `nai_get_balance` 工具添加 `detail` 参数，解决零参数导致的 Schema 生成问题
+- 函数内部自动处理类型转换，不影响正常使用
+
 ## v1.0.8
 
 - 新增 `AI_MODIFY_RULES.md` AI 修改要点文档（记录修改规范、退回方法、沟通注意事项）

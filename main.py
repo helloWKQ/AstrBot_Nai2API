@@ -361,7 +361,7 @@ class Nai2ApiPlugin(Star):
         artist: str = "",
         negative: str = "",
         preset: str = "",
-        seed: int = 0,
+        seed: str = "0",
     ):
         """使用 NovelAI 生成图片。
 
@@ -371,7 +371,7 @@ class Nai2ApiPlugin(Star):
             artist(string): 质量前缀或画师串，例如 "best quality, absurdres"，留空使用默认或预设
             negative(string): 负面提示词，留空使用默认
             preset(string): 预设名称，例如 "高质量"、"动漫风"，留空使用默认
-            seed(int): 随机种子，0 表示自动随机，相同种子可复现图片
+            seed(string): 随机种子，数字字符串，"0" 表示自动随机，相同种子可复现图片
         """
         if not self._llm_tool_enabled:
             return mcp.types.CallToolResult(
@@ -389,13 +389,21 @@ class Nai2ApiPlugin(Star):
         )
 
         try:
+            seed_int = 0
+            if seed and seed.strip():
+                try:
+                    seed_int = int(seed)
+                except ValueError:
+                    seed_int = 0
+            final_seed = seed_int if seed_int else None
+
             start = time.time()
             image_path = await self._do_generate(
                 prompt.strip(),
                 size=size.strip() or None,
                 artist=final_artist,
                 negative=negative.strip() or None,
-                seed=seed if seed else None,
+                seed=final_seed,
             )
             elapsed = time.time() - start
 
@@ -420,10 +428,11 @@ class Nai2ApiPlugin(Star):
             )
 
     @filter.llm_tool(name="nai_get_balance")
-    async def nai_get_balance_tool(self, event: AstrMessageEvent):
+    async def nai_get_balance_tool(self, event: AstrMessageEvent, detail: str = "simple"):
         """查询 Nai2API 账户余额和剩余点数。
-        
-        返回账户余额、状态以及预计可生成的图片数量。
+
+        Args:
+            detail(string): 可选，返回详细程度，"simple" 精简版，"full" 完整版，留空默认 simple
         """
         try:
             data = await self.client.get_balance()

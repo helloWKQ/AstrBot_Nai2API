@@ -25,10 +25,10 @@
 ## 二、退回版本（用户说"退回去"）
 
 - 用户说"退回去"三个字 = 退回到上一个 stable 标签
-- 最近的稳定版本标签：`v1.0.6-stable`（2026-06-23，异步生图前的版本）
+- 最近的稳定版本标签：`v1.0.9-stable`（2026-07-02，修复LLM工具调用兼容性问题后）
 - 操作：
   1. `git checkout main`
-  2. `git reset --hard v1.0.6-stable`
+  2. `git reset --hard v1.0.9-stable`
   3. `git push origin main --force`
 
 ---

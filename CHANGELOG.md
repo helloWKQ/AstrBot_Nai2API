@@ -1,5 +1,14 @@
 # 更新日志
 
+## v1.1.0
+
+- 新增「修改预设」功能
+  - 指令：`/nai update <名称> <新的质量前缀>` 或 `/nai 修改 <名称> <新的质量前缀>`
+  - LLM 工具：`nai_update_preset`（参数：name, artist）
+  - 内置预设不可修改，自定义预设才能修改
+  - `PresetManager` 新增 `update()` 方法，支持只修改部分字段
+- 帮助信息和 docstring 同步更新
+
 ## v1.0.11
 
 - 真正修复 Gemini 等模型通过 OpenAI 兼容层调用 LLM 工具时报 `value at top-level must be a list` 错误的问题

@@ -92,5 +92,17 @@ class PresetManager:
         logger.info("[PresetManager] 已删除预设 '%s'", name)
         return True
 
+    def update(self, name: str, artist: str | None = None, desc: str | None = None) -> bool:
+        """修改自定义预设，返回是否成功。只传 artist 就只改 artist，只传 desc 就只改 desc。"""
+        if name not in self._custom_presets:
+            return False
+        if artist is not None:
+            self._custom_presets[name]["artist"] = artist.strip()
+        if desc is not None:
+            self._custom_presets[name]["desc"] = desc.strip()
+        self._save()
+        logger.info("[PresetManager] 已修改预设 '%s'", name)
+        return True
+
     def is_builtin(self, name: str) -> bool:
         return name in BUILTIN_PRESETS

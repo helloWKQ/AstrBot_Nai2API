@@ -141,6 +141,7 @@ class Nai2ApiPlugin(Star):
             "nai_get_balance": ["detail"],
             "nai_list_presets": ["preset_name"],
             "nai_save_preset": ["name", "artist"],
+            "nai_update_preset": ["name", "artist"],
             "nai_delete_preset": ["name"],
         }
 
@@ -206,6 +207,7 @@ class Nai2ApiPlugin(Star):
         用法: /nai [尺寸] <提示词> [-p <预设>] [--artist <质量前缀>] [--negative <负面提示词>] [--seed <种子>]
               /nai presets | /nai 预设  →  查看所有预设
               /nai save <名称> <质量前缀>  →  保存自定义预设
+              /nai update <名称> <新的质量前缀>  →  修改自定义预设
               /nai del <名称>  →  删除自定义预设
         """
         # 注意：AstrBot 的 filter.command 已经把 wake_prefix（如 "/"）和 "nai" 前缀去除
@@ -231,11 +233,16 @@ class Nai2ApiPlugin(Star):
             rest = args[4:].strip() if args.startswith("del ") else args[3:].strip()
             return self._handle_del_preset(event, rest)
 
+        # 子命令：update <名称> <新的质量前缀>（中英文别名）
+        if args.startswith("update ") or args.startswith("修改 "):
+            rest = args[7:].strip() if args.startswith("update ") else args[3:].strip()
+            return self._handle_update_preset(event, rest)
+
         # 无参数时显示帮助
         if not args:
             return event.plain_result(
                 "用法: /nai [尺寸] <提示词> [-p <预设>] [--artist <质量前缀>] [--negative <负面提示词>]\n"
-                "预设: /nai presets(预设) | /nai save(保存) <名称> <质量前缀> | /nai del(删除) <名称>\n"
+                "预设: /nai presets(预设) | /nai save(保存) <名称> <质量前缀> | /nai update(修改) <名称> <新前缀> | /nai del(删除) <名称>\n"
                 "余额: /nai balance(余额/点数/次数)\n"
                 "尺寸: 竖图|横图|方图|2K竖图|2K横图|2K方图|4K竖图|4K横图|4K方图\n\n"
                 "示例:\n"
@@ -247,6 +254,8 @@ class Nai2ApiPlugin(Star):
                 "  /nai 1girl --seed 12345\n"
                 "  /nai save 我的预设 best quality, absurdres, detailed\n"
                 "  /nai 保存 我的预设 best quality, absurdres, detailed\n"
+                "  /nai update 我的预设 best quality, masterpiece\n"
+                "  /nai 修改 我的预设 best quality, masterpiece\n"
                 "  /nai del 我的预设\n"
                 "  /nai 删除 我的预设\n"
                 "  /nai balance"
@@ -379,6 +388,34 @@ class Nai2ApiPlugin(Star):
             return event.plain_result(f"已删除预设 '{name}'")
         else:
             return event.plain_result(f"预设 '{name}' 不存在")
+
+    def _handle_update_preset(self, event: AstrMessageEvent, args: str):
+        """修改自定义预设"""
+        args = args.strip()
+        if not args:
+            return event.plain_result(
+                "用法: /nai update <名称> <新的质量前缀>\n"
+                "示例: /nai update 我的预设 best quality, absurdres, detailed"
+            )
+
+        parts = args.split(None, 1)
+        if len(parts) < 2:
+            return event.plain_result(
+                "用法: /nai update <名称> <新的质量前缀>\n"
+                "示例: /nai update 我的预设 best quality, absurdres, detailed"
+            )
+
+        name, artist = parts[0].strip(), parts[1].strip()
+        if not name or not artist:
+            return event.plain_result("名称和质量前缀不能为空")
+
+        if self.presets.is_builtin(name):
+            return event.plain_result(f"'{name}' 是内置预设，无法修改")
+
+        if self.presets.update(name, artist=artist):
+            return event.plain_result(f"已修改预设 '{name}': {artist}")
+        else:
+            return event.plain_result(f"预设 '{name}' 不存在，使用 /nai save 保存新预设")
 
     @filter.llm_tool(name="nai_generate")
     async def nai_generate_tool(
@@ -577,6 +614,45 @@ class Nai2ApiPlugin(Star):
         return mcp.types.CallToolResult(
             content=[mcp.types.TextContent(type="text", text=result_text)]
         )
+
+    @filter.llm_tool(name="nai_update_preset")
+    async def nai_update_preset_tool(
+        self,
+        event: AstrMessageEvent,
+        name: str,
+        artist: str,
+    ):
+        """修改已有的自定义预设。
+
+        Args:
+            name(string): 要修改的预设名称
+            artist(string): 新的质量前缀/画师串
+        """
+        name = name.strip()
+        artist = artist.strip()
+
+        if not name or not artist:
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text="预设名称和质量前缀都不能为空")]
+            )
+
+        if self.presets.is_builtin(name):
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=f"'{name}' 是内置预设，无法修改")]
+            )
+
+        if self.presets.update(name, artist=artist):
+            result_text = f"已修改预设 '{name}' 成功"
+            await event.send(event.plain_result(result_text))
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=result_text)]
+            )
+        else:
+            result_text = f"预设 '{name}' 不存在，使用 nai_save_preset 保存新预设"
+            await event.send(event.plain_result(result_text))
+            return mcp.types.CallToolResult(
+                content=[mcp.types.TextContent(type="text", text=result_text)]
+            )
 
     @filter.llm_tool(name="nai_delete_preset")
     async def nai_delete_preset_tool(self, event: AstrMessageEvent, name: str):

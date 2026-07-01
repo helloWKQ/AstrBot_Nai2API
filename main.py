@@ -123,6 +123,34 @@ class Nai2ApiPlugin(Star):
         self._llm_tool_enabled = bool(config.get("llm_tool_enabled", True))
         self._show_image_info = bool(config.get("show_image_info", True))
 
+        self._fix_llm_tool_schemas()
+
+    def _fix_llm_tool_schemas(self):
+        """修复 LLM 工具的 JSON Schema，添加 required 字段以兼容 Gemini 等模型。
+
+        AstrBot 框架的 register_llm_tool 生成的 schema 不包含 required 字段，
+        导致 Gemini API 通过 OpenAI 兼容接口调用时报错 "value at top-level must be a list"。
+        """
+        try:
+            from astrbot.core.provider.register import llm_tools
+        except ImportError:
+            return
+
+        tool_required_map = {
+            "nai_generate": ["prompt"],
+            "nai_get_balance": ["detail"],
+            "nai_list_presets": ["preset_name"],
+            "nai_save_preset": ["name", "artist"],
+            "nai_delete_preset": ["name"],
+        }
+
+        for tool_name, required_params in tool_required_map.items():
+            tool = llm_tools.get_func(tool_name)
+            if tool is None:
+                continue
+            if "required" not in tool.parameters:
+                tool.parameters["required"] = list(required_params)
+
     async def terminate(self):
         """插件卸载时清理资源"""
         await self.client.close()
